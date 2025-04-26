@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+
+{% block title %}Жалоба #{{ complaint.id }} - Система обработки жалоб{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="card-title">Жалоба #{{ complaint.id }}</h3>
+                <div class="float-end">
+                    <span class="badge status-badge status-{{ complaint.status }}">
+                        {{ complaint.get_status_display }}
+                    </span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <h5>Информация о заявителе</h5>
+                        <p><strong>ФИО:</strong> {{ complaint.full_name|default:"Не указано" }}</p>
+                        <p><strong>Контактные данные:</strong> {{ complaint.contact_info|default:"Не указаны" }}</p>
+                        <p><strong>Instagram:</strong> {{ complaint.instagram_username|default:"Не указан" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h5>Служебная информация</h5>
+                        <p><strong>Дата поступления:</strong> {{ complaint.created_at|date:"d.m.Y H:i" }}</p>
+                        <p><strong>Срок исполнения:</strong> {{ complaint.deadline|date:"d.m.Y" }}</p>
+                        <p><strong>Ответственное управление:</strong> {{ complaint.department.name|default:"Не назначено" }}</p>
+                        <p><strong>Назначенный сотрудник:</strong> {{ complaint.assigned_to|default:"Не назначен" }}</p>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <h5>Содержание жалобы</h5>
+                    <div class="border p-3 bg-light">
+                        {{ complaint.content|linebreaks }}
+                    </div>
+                </div>
+
+                <form method="post" class="mt-4">
+                    {% csrf_token %}
+                    <div class="row">
+                        {% for field in form %}
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                                {{ field }}
+                                {% if field.errors %}
+                                    <div class="alert alert-danger">
+                                        {{ field.errors }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">Сохранить</button>
+                        <a href="{% url 'complaints:complaint_list' %}" class="btn btn-secondary">Назад</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">История изменений</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    {% for entry in history %}
+                        <div class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ entry.field }}</h6>
+                                <small>{{ entry.changed_at|date:"d.m.Y H:i" }}</small>
+                            </div>
+                            <p class="mb-1">
+                                <strong>Было:</strong> {{ entry.old_value }}<br>
+                                <strong>Стало:</strong> {{ entry.new_value }}
+                            </p>
+                            <small>Изменено: {{ entry.changed_by.username }}</small>
+                        </div>
+                    {% empty %}
+                        <div class="list-group-item">
+                            <p class="mb-0">История изменений отсутствует</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+
+{% block title %}Список жалоб - Система обработки жалоб{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2>Список жалоб</h2>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    {% for field in form %}
+                        <div class="col-md-3">
+                            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                            {{ field }}
+                        </div>
+                    {% endfor %}
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">Применить фильтры</button>
+                        <a href="{% url 'complaints:complaint_list' %}" class="btn btn-secondary">Сбросить</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Дата</th>
+                        <th>Содержание</th>
+                        <th>Управление</th>
+                        <th>Статус</th>
+                        <th>Срок</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for complaint in complaints %}
+                    <tr>
+                        <td>{{ complaint.id }}</td>
+                        <td>{{ complaint.created_at|date:"d.m.Y H:i" }}</td>
+                        <td>
+                            <div class="text-truncate" style="max-width: 300px;">
+                                {{ complaint.content }}
+                            </div>
+                        </td>
+                        <td>{{ complaint.department.name|default:"Не назначено" }}</td>
+                        <td>
+                            <span class="badge status-badge status-{{ complaint.status }}">
+                                {{ complaint.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if complaint.deadline %}
+                                {{ complaint.deadline|date:"d.m.Y" }}
+                                {% if complaint.status != 'completed' and complaint.deadline < now %}
+                                    <span class="badge bg-danger">Просрочено</span>
+                                {% endif %}
+                            {% else %}
+                                Не указан
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'complaints:complaint_detail' complaint.pk %}" class="btn btn-sm btn-primary">
+                                Просмотр
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center">Жалобы не найдены</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %} 

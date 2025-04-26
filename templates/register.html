@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Регистрация - Система обработки жалоб{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Регистрация нового пользователя</h3>
+            </div>
+            <div class="card-body">
+                {% if form.errors %}
+                    <div class="alert alert-danger">
+                        <strong>Пожалуйста, исправьте следующие ошибки:</strong>
+                        <ul>
+                            {% for field, errors in form.errors.items %}
+                                {% for error in errors %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+                
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        {{ form.username|as_crispy_field }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.email|as_crispy_field }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.first_name|as_crispy_field }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.last_name|as_crispy_field }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.password1|as_crispy_field }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.password2|as_crispy_field }}
+                    </div>
+                    <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
+                </form>
+                <div class="mt-3">
+                    <p>Уже есть аккаунт? <a href="{% url 'login' %}">Войти</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
