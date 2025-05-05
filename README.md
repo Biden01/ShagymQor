@@ -109,7 +109,3 @@ ShagymQor/
                 ├── analytics.html
                 └── department_list.html
 ```
-
-## Лицензия
-
-MIT 
