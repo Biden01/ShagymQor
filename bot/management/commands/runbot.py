@@ -67,8 +67,8 @@ DEPARTMENTS = {
 class Command(BaseCommand):
     help = 'Запускает Telegram бота системы ShagymQor'
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.bot = None
         self.dp = None
         self.storage = MemoryStorage()
@@ -133,14 +133,14 @@ class Command(BaseCommand):
         self.dp = Dispatcher(storage=self.storage)
 
         # Регистрация обработчиков команд
-        self.dp.message.register(self.cmd_start, lambda msg: msg.text == "/start")
-        self.dp.message.register(self.cmd_help, lambda msg: msg.text == "/help")
+        self.dp.message.register(self.cmd_start, F.text == "/start")
+        self.dp.message.register(self.cmd_help, F.text == "/help")
         
         # Регистрация обработчиков кнопок
-        self.dp.message.register(self.create_appeal, lambda msg: msg.text == "📝 Оставить обращение")
-        self.dp.message.register(self.list_appeals, lambda msg: msg.text == "📋 Мои обращения")
-        self.dp.message.register(self.show_statistics, lambda msg: msg.text == "📊 Статистика")
-        self.dp.message.register(self.show_notifications, lambda msg: msg.text == "📬 Уведомления")
+        self.dp.message.register(self.create_appeal, F.text == "📝 Оставить обращение")
+        self.dp.message.register(self.list_appeals, F.text == "📋 Мои обращения")
+        self.dp.message.register(self.show_statistics, F.text == "📊 Статистика")
+        self.dp.message.register(self.show_notifications, F.text == "📬 Уведомления")
         
         # Регистрация обработчиков состояний FSM
         self.dp.message.register(
@@ -159,65 +159,44 @@ class Command(BaseCommand):
         )
 
         # Обработчик всех текстовых сообщений (должен быть последним)
-        self.dp.message.register(self.handle_message)
+        self.dp.message.register(self.handle_message, F.text)
+        
+        logger.info("Бот настроен и готов к работе")
 
     async def handle_message(self, message: types.Message):
-        """Обработчик всех текстовых сообщений"""
-        if message.text and not message.text.startswith('/'):
-            logger.info(f"Получено сообщение: {message.text}")
-            
-            # Анализируем текст и определяем управление
-            department, confidence = await analyze_complaint_text(message.text)
-            logger.info(f"Результат анализа: управление={department}, уверенность={confidence}")
-            
-            if department and confidence >= 50:  # Если уверенность больше 50%
-                logger.info(f"Автоматически определено управление {department.name} с уверенностью {confidence}%")
-                # Создаем обращение
-                user, _ = await sync_to_async(TelegramUser.objects.get_or_create)(
-                    user_id=message.from_user.id,
-                    defaults={
-                        'username': message.from_user.username,
-                        'first_name': message.from_user.first_name,
-                        'last_name': message.from_user.last_name
-                    }
-                )
-                
-                complaint = await sync_to_async(Complaint.objects.create)(
-                    user=user,
-                    department=department,
-                    message=message.text,
-                    status='new'
-                )
-                
-                # Создаем запись в истории
-                await sync_to_async(ComplaintHistory.objects.create)(
-                    complaint=complaint,
-                    status='new',
-                    department=department,
-                    comment=f'Обращение создано через Telegram бота. Автоматически определено управление с уверенностью {confidence:.1f}%'
-                )
-                
-                await message.answer(
-                    f"✅ Ваше обращение успешно создано и направлено в {department.name}!\n\n"
-                    f"Номер обращения: #{complaint.id}\n"
-                    f"Уверенность определения: {confidence:.1f}%\n"
-                    f"Статус: Новое\n\n"
-                    f"Вы можете отслеживать статус обращения на сайте или через бота.",
-                    reply_markup=self.get_main_keyboard()
-                )
-            else:
-                logger.info("Не удалось автоматически определить управление или уверенность низкая")
-                # Если не удалось определить управление или уверенность низкая
-                await message.answer(
-                    "К сожалению, я не смог автоматически определить подходящее управление для вашего обращения.\n"
-                    "Пожалуйста, выберите управление из списка ниже:",
-                    reply_markup=self.get_departments_keyboard()
-                )
-                
-                # Сохраняем текст обращения в состояние
-                state = FSMContext(self.dp.storage, message.from_user.id, message.chat.id)
-                await state.update_data(message=message.text)
-                await state.set_state(ComplaintStates.waiting_for_department)
+        """
+        Обработчик всех текстовых сообщений
+        """
+        logger.info(f"Получено сообщение: {message.text}")
+        
+        # Проверяем, не является ли сообщение командой или кнопкой
+        if message.text.startswith('/') or message.text in [
+            "📝 Оставить обращение",
+            "📋 Мои обращения",
+            "📊 Статистика",
+            "📬 Уведомления"
+        ]:
+            logger.info("Сообщение является командой или кнопкой, пропускаем обработку")
+            return
+        
+        # Анализируем текст обращения
+        department, confidence = await analyze_complaint_text(message.text)
+        logger.info(f"Результат анализа: управление={department}, уверенность={confidence}")
+        
+        if department and confidence >= 50:
+            # Если уверенность высокая, создаем обращение автоматически
+            logger.info("Автоматически определяем управление")
+            await self.create_complaint(message, department)
+        else:
+            # Если уверенность низкая или управление не определено,
+            # предлагаем пользователю выбрать управление
+            logger.info("Не удалось автоматически определить управление или уверенность низкая")
+            state = FSMContext(self.dp.storage, message.from_user.id)
+            await state.set_state(ComplaintStates.waiting_for_department)
+            await message.answer(
+                "Пожалуйста, выберите управление, в которое хотите направить обращение:",
+                reply_markup=self.get_departments_keyboard()
+            )
 
     async def cmd_start(self, message: types.Message):
         """Обработчик команды /start"""
@@ -311,25 +290,28 @@ class Command(BaseCommand):
                 confidence=confidence
             )
             
-            # Запрашиваем подтверждение
-            keyboard = InlineKeyboardMarkup()
-            keyboard.add(
-                InlineKeyboardButton(
-                    text=f"Да, отправить в {department.name}",
-                    callback_data="confirm_department"
-                ),
-                InlineKeyboardButton(
-                    text="Выбрать другое управление",
-                    callback_data="choose_department"
-                )
-            )
+            # Создаем клавиатуру для подтверждения
+            keyboard = [
+                [
+                    InlineKeyboardButton(
+                        text=f"✅ Да, отправить в {department.name}",
+                        callback_data="confirm_department"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        text="🔄 Выбрать другое управление",
+                        callback_data="choose_department"
+                    )
+                ]
+            ]
             
             await message.answer(
                 f"Я определил, что ваше обращение относится к управлению:\n"
                 f"📋 {department.name}\n"
                 f"Уверенность: {confidence:.1f}%\n\n"
                 f"Вы согласны с этим выбором?",
-                reply_markup=keyboard
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard)
             )
             await state.set_state(ComplaintStates.waiting_for_confirmation)
         else:
@@ -537,4 +519,5 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS('Запуск бота...'))
             asyncio.run(self.run_bot())
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f'Ошибка при запуске бота: {e}')) 
+            self.stdout.write(self.style.ERROR(f'Ошибка при запуске бота: {e}'))
+            raise e 

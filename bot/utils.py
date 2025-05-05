@@ -7,10 +7,19 @@ from typing import Tuple, Optional
 
 logger = logging.getLogger(__name__)
 
-def analyze_complaint_text(text: str) -> Tuple[Optional[Department], float]:
+@sync_to_async
+def get_department(name: str) -> Optional[Department]:
+    try:
+        return Department.objects.get(name=name)
+    except Department.DoesNotExist:
+        return None
+
+async def analyze_complaint_text(text: str) -> Tuple[Optional[Department], float]:
     """
     Анализирует текст обращения и определяет наиболее подходящее управление
     """
+    logger.info(f"Начинаем анализ текста: {text}")
+    
     # Словарь ключевых слов для каждого управления
     keywords = {
         'Управление образования': [
@@ -263,41 +272,74 @@ def analyze_complaint_text(text: str) -> Tuple[Optional[Department], float]:
         ]
     }
     
-    # Подсчитываем количество совпадений для каждого управления
-    scores = {}
+    # Подготовка текста
     text = text.lower()
     words = text.split()
+    logger.info(f"Текст после обработки: {text}")
+    logger.info(f"Слова в тексте: {words}")
+    
+    # Подсчитываем количество совпадений для каждого управления
+    scores = {}
+    max_matches = 0
     
     for department, words_list in keywords.items():
-        matches = sum(1 for word in words_list if word.lower() in text)
-        if matches > 0:
-            scores[department] = matches
-            logger.info(f"Управление {department}: найдено {matches} совпадений")
+        matches = []
+        word_weights = {}  # Словарь для хранения весов слов
+        
+        for word in words_list:
+            if word.lower() in text:
+                # Определяем вес слова
+                weight = 1.0
+                if word in ['школа', 'отопление', 'вода', 'дорога', 'больница']:  # Ключевые слова
+                    weight = 2.0
+                if len(word.split()) > 1:  # Составные фразы имеют больший вес
+                    weight = 2.5
+                    
+                matches.append(word)
+                word_weights[word] = weight
+        
+        if matches:
+            # Считаем общий счет с учетом весов
+            total_weight = sum(word_weights[word] for word in matches)
+            scores[department] = total_weight
+            max_matches = max(max_matches, len(matches))
+            logger.info(f"Управление {department}: найдено {len(matches)} совпадений: {matches}, общий вес: {total_weight}")
     
     if not scores:
         logger.info("Не найдено совпадений ни с одним управлением")
         return None, 0.0
     
-    # Находим управление с максимальным количеством совпадений
+    # Находим управление с максимальным счетом
     max_department = max(scores.items(), key=lambda x: x[1])
     
-    # Рассчитываем уверенность на основе количества совпадений и длины текста
-    total_words = len(words)
-    confidence = (max_department[1] / total_words) * 100
+    # Рассчитываем уверенность
+    # Учитываем количество совпадений и их веса
+    base_confidence = (max_department[1] / len(words)) * 100
     
     # Увеличиваем уверенность, если есть несколько совпадений
-    if max_department[1] > 1:
-        confidence *= 1.5
+    if max_matches > 1:
+        base_confidence *= 1.5
+    
+    # Если есть точные совпадения ключевых слов, увеличиваем уверенность
+    key_words_matched = any(
+        word in text for word in [
+            'школа', 'отопление', 'вода', 'дорога', 'больница',
+            'детский сад', 'поликлиника', 'жкх', 'транспорт'
+        ]
+    )
+    if key_words_matched:
+        base_confidence *= 1.3
     
     # Ограничиваем максимальную уверенность 100%
-    confidence = min(confidence, 100.0)
+    confidence = min(base_confidence, 100.0)
     
     logger.info(f"Выбрано управление {max_department[0]} с уверенностью {confidence:.1f}%")
     
-    try:
-        department = Department.objects.get(name=max_department[0])
+    # Получаем управление из базы данных асинхронно
+    department = await get_department(max_department[0])
+    if department:
         logger.info(f"Управление {max_department[0]} найдено в базе данных")
         return department, confidence
-    except Department.DoesNotExist:
+    else:
         logger.error(f"Управление {max_department[0]} не найдено в базе данных")
         return None, 0.0 
