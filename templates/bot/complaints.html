@@ -1,0 +1,154 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Обращения - Шағым Qор{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1 class="mb-4">Обращения</h1>
+    </div>
+    <div class="col-md-4">
+        <div class="input-group">
+            <input type="text" class="form-control" placeholder="Поиск обращений..." id="searchInput">
+            <button class="btn btn-primary" type="button">
+                <i class="fas fa-search"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Фильтры -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <form class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Статус</label>
+                        <select class="form-select" name="status">
+                            <option value="">Все статусы</option>
+                            <option value="new">Новые</option>
+                            <option value="in_progress">В работе</option>
+                            <option value="completed">Выполненные</option>
+                            <option value="overdue">Просроченные</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Приоритет</label>
+                        <select class="form-select" name="priority">
+                            <option value="">Все приоритеты</option>
+                            <option value="low">Низкий</option>
+                            <option value="medium">Средний</option>
+                            <option value="high">Высокий</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Управление</label>
+                        <select class="form-select" name="department">
+                            <option value="">Все управления</option>
+                            {% for dept in departments %}
+                            <option value="{{ dept.id }}">{{ dept.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-filter"></i> Применить фильтры
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Список обращений -->
+<div class="row">
+    {% for complaint in complaints %}
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <h5 class="card-title mb-0">Обращение #{{ complaint.id }}</h5>
+                    <span class="badge {% if complaint.status == 'new' %}bg-primary{% elif complaint.status == 'in_progress' %}bg-warning{% elif complaint.status == 'completed' %}bg-success{% else %}bg-danger{% endif %}">
+                        {{ complaint.get_status_display }}
+                    </span>
+                </div>
+                
+                <p class="card-text">{{ complaint.message|truncatechars:200 }}</p>
+                
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                    <div>
+                        <small class="text-muted">
+                            <i class="fas fa-user"></i> {{ complaint.user.first_name }} {{ complaint.user.last_name }}
+                        </small>
+                        <br>
+                        <small class="text-muted">
+                            <i class="fas fa-building"></i> {{ complaint.department.name }}
+                        </small>
+                    </div>
+                    <div class="text-end">
+                        <small class="text-muted">
+                            <i class="fas fa-calendar"></i> {{ complaint.created_at|date:"d.m.Y H:i" }}
+                        </small>
+                        <br>
+                        <small class="text-muted">
+                            <i class="fas fa-flag"></i> {{ complaint.get_priority_display }}
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent">
+                <a href="{% url 'complaint_detail' complaint.id %}" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-eye"></i> Подробнее
+                </a>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> Обращений не найдено
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Пагинация -->
+{% if complaints.has_other_pages %}
+<nav aria-label="Навигация по страницам" class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if complaints.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ complaints.previous_page_number }}" aria-label="Предыдущая">
+                <span aria-hidden="true">&laquo;</span>
+            </a>
+        </li>
+        {% endif %}
+        
+        {% for num in complaints.paginator.page_range %}
+        <li class="page-item {% if num == complaints.number %}active{% endif %}">
+            <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+        </li>
+        {% endfor %}
+        
+        {% if complaints.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ complaints.next_page_number }}" aria-label="Следующая">
+                <span aria-hidden="true">&raquo;</span>
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('searchInput').addEventListener('keyup', function() {
+    // Здесь будет логика поиска
+});
+</script>
+{% endblock %} 

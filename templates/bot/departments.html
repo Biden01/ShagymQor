@@ -1,0 +1,102 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Управления - Шағым Qор{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1 class="mb-4">Управления</h1>
+    </div>
+    <div class="col-md-4">
+        <div class="input-group">
+            <input type="text" class="form-control" placeholder="Поиск управлений..." id="searchInput">
+            <button class="btn btn-primary" type="button">
+                <i class="fas fa-search"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    {% for department in departments %}
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-building text-primary"></i>
+                    {{ department.name }}
+                </h5>
+                <p class="card-text">{{ department.description|truncatechars:150 }}</p>
+                
+                <div class="mt-3">
+                    <h6 class="text-muted mb-2">Статистика</h6>
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <div class="small text-muted">Всего</div>
+                            <div class="h5 mb-0">{{ department.complaint_set.count }}</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="small text-muted">В работе</div>
+                            <div class="h5 mb-0">{{ department.complaint_set.filter.status='in_progress'|length }}</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="small text-muted">Выполнено</div>
+                            <div class="h5 mb-0">{{ department.complaint_set.filter.status='completed'|length }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent">
+                <a href="{% url 'department_detail' department.id %}" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-eye"></i> Подробнее
+                </a>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> Управлений не найдено
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if user.is_staff %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Добавить управление</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'add_department' %}">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Название</label>
+                            <input type="text" class="form-control" name="name" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Описание</label>
+                            <textarea class="form-control" name="description" rows="1"></textarea>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Добавить управление
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('searchInput').addEventListener('keyup', function() {
+    // Здесь будет логика поиска
+});
+</script>
+{% endblock %} 

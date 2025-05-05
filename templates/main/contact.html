@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+{% block title %}Контакты - Шағым Qор{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <h1 class="mb-4">Контакты</h1>
+            
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Свяжитесь с нами</h5>
+                    <p class="card-text">
+                        Если у вас возникли вопросы или проблемы при использовании системы, 
+                        вы можете связаться с нами следующими способами:
+                    </p>
+                    
+                    <div class="list-group mb-4">
+                        <div class="list-group-item">
+                            <h6 class="mb-1">Телефон поддержки</h6>
+                            <p class="mb-0">+7 (777) 123-45-67</p>
+                        </div>
+                        <div class="list-group-item">
+                            <h6 class="mb-1">Email</h6>
+                            <p class="mb-0">support@shagymqor.kz</p>
+                        </div>
+                        <div class="list-group-item">
+                            <h6 class="mb-1">Telegram</h6>
+                            <p class="mb-0">@ShagymQorSupport</p>
+                        </div>
+                    </div>
+
+                    <h5 class="card-title mt-4">Время работы</h5>
+                    <p class="card-text">
+                        Понедельник - Пятница: 9:00 - 18:00<br>
+                        Суббота - Воскресенье: Выходной
+                    </p>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Форма обратной связи</h5>
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Ваше имя</label>
+                            <input type="text" class="form-control" id="name" name="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="message" class="form-label">Сообщение</label>
+                            <textarea class="form-control" id="message" name="message" rows="5" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Отправить</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

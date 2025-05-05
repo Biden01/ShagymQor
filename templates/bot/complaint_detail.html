@@ -1,0 +1,176 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Обращение #{{ complaint.id }} - Шағым Qор{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Основная информация -->
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-4">
+                    <h1 class="h3 mb-0">Обращение #{{ complaint.id }}</h1>
+                    <span class="badge {% if complaint.status == 'new' %}bg-primary{% elif complaint.status == 'in_progress' %}bg-warning{% elif complaint.status == 'completed' %}bg-success{% else %}bg-danger{% endif %} fs-6">
+                        {{ complaint.get_status_display }}
+                    </span>
+                </div>
+
+                <div class="mb-4">
+                    <h5 class="card-title">Текст обращения</h5>
+                    <p class="card-text">{{ complaint.message }}</p>
+                </div>
+
+                {% if complaint.response %}
+                <div class="mb-4">
+                    <h5 class="card-title">Ответ</h5>
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <p class="card-text">{{ complaint.response }}</p>
+                            <small class="text-muted">
+                                Ответ дан: {{ complaint.updated_at|date:"d.m.Y H:i" }}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5 class="card-title">Информация</h5>
+                        <ul class="list-unstyled">
+                            <li class="mb-2">
+                                <i class="fas fa-user text-primary"></i>
+                                <strong>Отправитель:</strong> {{ complaint.user.first_name }} {{ complaint.user.last_name }}
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-building text-primary"></i>
+                                <strong>Управление:</strong> {{ complaint.department.name }}
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-calendar text-primary"></i>
+                                <strong>Дата создания:</strong> {{ complaint.created_at|date:"d.m.Y H:i" }}
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h5 class="card-title">Детали</h5>
+                        <ul class="list-unstyled">
+                            <li class="mb-2">
+                                <i class="fas fa-flag text-primary"></i>
+                                <strong>Приоритет:</strong> {{ complaint.get_priority_display }}
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-clock text-primary"></i>
+                                <strong>Срок выполнения:</strong>
+                                {% if complaint.deadline %}
+                                    {{ complaint.deadline|date:"d.m.Y H:i" }}
+                                {% else %}
+                                    Не установлен
+                                {% endif %}
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-check-circle text-primary"></i>
+                                <strong>Дата выполнения:</strong>
+                                {% if complaint.completed_at %}
+                                    {{ complaint.completed_at|date:"d.m.Y H:i" }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Боковая панель -->
+    <div class="col-md-4">
+        <!-- История статусов -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">История статусов</h5>
+            </div>
+            <div class="card-body">
+                <div class="timeline">
+                    {% for history in complaint.complainthistory_set.all %}
+                    <div class="timeline-item mb-3">
+                        <div class="timeline-marker"></div>
+                        <div class="timeline-content">
+                            <h6 class="mb-1">{{ history.get_status_display }}</h6>
+                            <p class="mb-1">{{ history.comment }}</p>
+                            <small class="text-muted">{{ history.created_at|date:"d.m.Y H:i" }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Действия -->
+        {% if user.is_staff %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Действия</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'update_complaint_status' complaint.id %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Изменить статус</label>
+                        <select class="form-select" name="status">
+                            {% for status, label in complaint.STATUS_CHOICES %}
+                            <option value="{{ status }}" {% if status == complaint.status %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Комментарий</label>
+                        <textarea class="form-control" name="comment" rows="3"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-save"></i> Сохранить изменения
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline-item {
+    position: relative;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -30px;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    border: 3px solid #fff;
+    box-shadow: 0 0 0 2px var(--primary-color);
+}
+
+.timeline-item:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: -23px;
+    top: 15px;
+    height: calc(100% + 10px);
+    width: 2px;
+    background: var(--primary-color);
+}
+</style>
+{% endblock %} 

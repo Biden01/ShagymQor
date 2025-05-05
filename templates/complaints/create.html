@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}Новое обращение - Шағым Qор{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title mb-0">Новое обращение</h2>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Тема обращения *</label>
+                            <input type="text" class="form-control" id="title" name="title" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="department" class="form-label">Отдел *</label>
+                            <select class="form-select" id="department" name="department" required>
+                                <option value="">Выберите отдел</option>
+                                {% for department in departments %}
+                                <option value="{{ department.id }}">{{ department.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="message" class="form-label">Текст обращения *</label>
+                            <textarea class="form-control" id="message" name="message" rows="5" required></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="files" class="form-label">Прикрепить файлы</label>
+                            <input type="file" class="form-control" id="files" name="files" multiple>
+                            <div class="form-text">Можно прикрепить несколько файлов. Максимальный размер файла - 10MB.</div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'complaints' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left"></i> Назад к списку
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane"></i> Отправить обращение
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

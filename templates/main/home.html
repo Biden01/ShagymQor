@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block title %}Главная - Шағым Qор{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto text-center">
+            <h1 class="display-4 mb-4">Добро пожаловать в Шағым Qор</h1>
+            <p class="lead">Система автоматизации обработки жалоб и предложений от граждан</p>
+            <p class="text-center">Ваш надежный помощник в решении городских проблем</p>
+            
+            <div class="row mt-5">
+                <div class="col-md-4">
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <i class="fas fa-comments fa-3x mb-3 text-primary"></i>
+                            <h5>Обращения</h5>
+                            <p>Отправляйте жалобы и предложения через удобный интерфейс</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <i class="fas fa-chart-line fa-3x mb-3 text-success"></i>
+                            <h5>Отслеживание</h5>
+                            <p>Следите за статусом ваших обращений в реальном времени</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <i class="fas fa-bell fa-3x mb-3 text-warning"></i>
+                            <h5>Уведомления</h5>
+                            <p>Получайте мгновенные уведомления об изменениях статуса</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-5">
+                <h3>Последние обращения</h3>
+                {% if recent_complaints %}
+                    <div class="list-group">
+                        {% for complaint in recent_complaints %}
+                            <a href="{% url 'complaint_detail' complaint.id %}" class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h5 class="mb-1">Обращение #{{ complaint.id }}</h5>
+                                    <small>{{ complaint.created_at|date:"d.m.Y" }}</small>
+                                </div>
+                                <p class="mb-1">{{ complaint.message|truncatechars:100 }}</p>
+                                <small>Статус: {{ complaint.get_status_display }}</small>
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> Пока нет активных обращений
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -1,19 +1,27 @@
 import os
 from celery import Celery
-from django.conf import settings
+from celery.schedules import crontab
 
-# Set the default Django settings module for the 'celery' program.
+# Устанавливаем переменную окружения для настроек Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ShagymQor.settings')
 
+# Создание экземпляра приложения Celery
 app = Celery('ShagymQor')
 
-# Using a string here means the worker doesn't have to serialize
-# the configuration object to child processes.
+# Загружаем настройки из файла settings.py
 app.config_from_object('django.conf:settings', namespace='CELERY')
 
-# Load task modules from all registered Django app configs.
-app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
+# Автоматически загружаем задачи из всех приложений
+app.autodiscover_tasks()
 
-@app.task(bind=True, ignore_result=True)
+# Настройка периодических задач
+app.conf.beat_schedule = {
+    'check-complaint-deadlines': {
+        'task': 'bot.tasks.check_complaint_deadlines',
+        'schedule': crontab(minute='*/30'),  # Каждые 30 минут
+    },
+}
+
+@app.task(bind=True)
 def debug_task(self):
     print(f'Request: {self.request!r}') 

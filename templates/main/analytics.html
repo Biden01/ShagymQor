@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block title %}Аналитика - Шағым Qор{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">Аналитика обращений</h1>
+    
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Статистика по статусам</h5>
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Обращения по отделам</h5>
+                    <canvas id="departmentChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Динамика обращений</h5>
+                    <canvas id="timelineChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // График по статусам
+    const statusCtx = document.getElementById('statusChart').getContext('2d');
+    new Chart(statusCtx, {
+        type: 'pie',
+        data: {
+            labels: ['Новые', 'В работе', 'Завершено', 'Отклонено'],
+            datasets: [{
+                data: [30, 20, 40, 10],
+                backgroundColor: ['#007bff', '#ffc107', '#28a745', '#dc3545']
+            }]
+        }
+    });
+    
+    // График по отделам
+    const departmentCtx = document.getElementById('departmentChart').getContext('2d');
+    new Chart(departmentCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Отдел 1', 'Отдел 2', 'Отдел 3', 'Отдел 4'],
+            datasets: [{
+                label: 'Количество обращений',
+                data: [25, 15, 35, 20],
+                backgroundColor: '#007bff'
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+    
+    // График динамики
+    const timelineCtx = document.getElementById('timelineChart').getContext('2d');
+    new Chart(timelineCtx, {
+        type: 'line',
+        data: {
+            labels: ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн'],
+            datasets: [{
+                label: 'Количество обращений',
+                data: [65, 59, 80, 81, 56, 55],
+                borderColor: '#007bff',
+                tension: 0.1
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}
+{% endblock %} 

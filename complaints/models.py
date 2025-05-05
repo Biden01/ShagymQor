@@ -1,105 +1,75 @@
 from django.db import models
 from django.contrib.auth.models import User
-from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 
 class Department(models.Model):
-    """Модель управления/отдела"""
-    name = models.CharField(max_length=200, verbose_name=_('Название управления'))
-    email = models.EmailField(verbose_name=_('Email ответственного'))
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Дата создания'))
-    updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Дата обновления'))
+    """Модель для управления"""
+    name = models.CharField(max_length=200, verbose_name="Название управления")
+    description = models.TextField(blank=True, verbose_name="Описание")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = _('Управление')
-        verbose_name_plural = _('Управления')
+        verbose_name = "Управление"
+        verbose_name_plural = "Управления"
         ordering = ['name']
 
     def __str__(self):
         return self.name
 
-class MediaFile(models.Model):
-    """Модель для медиафайлов жалобы"""
-    file = models.FileField(upload_to='complaints/media/%Y/%m/%d/', verbose_name=_('Файл'))
-    file_type = models.CharField(max_length=10, choices=[
-        ('image', _('Изображение')),
-        ('video', _('Видео')),
-        ('document', _('Документ'))
-    ], verbose_name=_('Тип файла'))
-    complaint = models.ForeignKey('Complaint', on_delete=models.CASCADE, related_name='media_files')
-    uploaded_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Дата загрузки'))
+class Complaint(models.Model):
+    """Модель для обращений"""
+    STATUS_CHOICES = [
+        ('new', 'Новое'),
+        ('in_progress', 'В работе'),
+        ('completed', 'Завершено'),
+        ('rejected', 'Отклонено'),
+    ]
+
+    title = models.CharField(max_length=200, verbose_name="Тема обращения")
+    message = models.TextField(verbose_name="Текст обращения")
+    author = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Автор")
+    department = models.ForeignKey(Department, on_delete=models.CASCADE, verbose_name="Управление")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new', verbose_name="Статус")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deadline = models.DateTimeField(null=True, blank=True, verbose_name="Срок выполнения")
 
     class Meta:
-        verbose_name = _('Медиафайл')
-        verbose_name_plural = _('Медиафайлы')
+        verbose_name = "Обращение"
+        verbose_name_plural = "Обращения"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.title} ({self.get_status_display()})"
+
+class ComplaintStatus(models.Model):
+    """Модель для истории статусов обращения"""
+    complaint = models.ForeignKey(Complaint, on_delete=models.CASCADE, related_name='status_history')
+    status = models.CharField(max_length=20, choices=Complaint.STATUS_CHOICES)
+    comment = models.TextField(blank=True, verbose_name="Комментарий")
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    class Meta:
+        verbose_name = "История статуса"
+        verbose_name_plural = "История статусов"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.complaint.title} - {self.get_status_display()}"
+
+class ComplaintFile(models.Model):
+    """Модель для файлов, прикрепленных к обращению"""
+    complaint = models.ForeignKey(Complaint, on_delete=models.CASCADE, related_name='files')
+    file = models.FileField(upload_to='complaints/%Y/%m/%d/', verbose_name="Файл")
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    class Meta:
+        verbose_name = "Файл обращения"
+        verbose_name_plural = "Файлы обращений"
         ordering = ['-uploaded_at']
 
     def __str__(self):
-        return f"{self.get_file_type_display()} для жалобы #{self.complaint.id}"
-
-class Complaint(models.Model):
-    """Модель жалобы"""
-    STATUS_CHOICES = (
-        ('new', _('Новая')),
-        ('in_progress', _('В процессе')),
-        ('completed', _('Выполнена')),
-        ('overdue', _('Просрочена')),
-    )
-
-    # Основная информация
-    full_name = models.CharField(max_length=200, blank=True, null=True, verbose_name=_('ФИО гражданина'))
-    contact_info = models.CharField(max_length=200, blank=True, null=True, verbose_name=_('Контактные данные'))
-    content = models.TextField(verbose_name=_('Содержание жалобы'))
-    
-    # Служебная информация
-    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, verbose_name=_('Ответственное управление'))
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new', verbose_name=_('Статус'))
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Дата поступления'))
-    deadline = models.DateTimeField(verbose_name=_('Срок исполнения'))
-    updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Дата последнего изменения'))
-    
-    # Instagram данные
-    instagram_id = models.CharField(max_length=100, unique=True, verbose_name=_('ID сообщения в Instagram'))
-    instagram_username = models.CharField(max_length=100, blank=True, null=True, verbose_name=_('Instagram пользователь'))
-    
-    # Метаданные
-    assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, 
-                                  verbose_name=_('Назначенный сотрудник'))
-    priority = models.IntegerField(default=0, verbose_name=_('Приоритет'))
-    tags = models.CharField(max_length=500, blank=True, null=True, verbose_name=_('Теги'))
-
-    class Meta:
-        verbose_name = _('Жалоба')
-        verbose_name_plural = _('Жалобы')
-        ordering = ['-created_at']
-        indexes = [
-            models.Index(fields=['status']),
-            models.Index(fields=['department']),
-            models.Index(fields=['created_at']),
-        ]
-
-    def __str__(self):
-        return f"Жалоба #{self.id} от {self.created_at.strftime('%d.%m.%Y')}"
-
-    def save(self, *args, **kwargs):
-        """Переопределяем метод save для автоматической проверки просрочки"""
-        if self.status != 'completed' and self.deadline < timezone.now():
-            self.status = 'overdue'
-        super().save(*args, **kwargs)
-
-class ComplaintHistory(models.Model):
-    """Модель для отслеживания истории изменений жалобы"""
-    complaint = models.ForeignKey(Complaint, on_delete=models.CASCADE, related_name='history')
-    changed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-    field = models.CharField(max_length=50)
-    old_value = models.CharField(max_length=500, null=True)
-    new_value = models.CharField(max_length=500, null=True)
-    changed_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        verbose_name = _('История изменений')
-        verbose_name_plural = _('История изменений')
-        ordering = ['-changed_at']
-
-    def __str__(self):
-        return f"Изменение {self.field} в жалобе #{self.complaint.id}"
+        return f"Файл к обращению {self.complaint.title}" 

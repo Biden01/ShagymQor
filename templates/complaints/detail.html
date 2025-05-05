@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+
+{% block title %}Обращение #{{ complaint.id }} - Шағым Qор{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <!-- Основная информация -->
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h2 class="card-title mb-0">Обращение #{{ complaint.id }}</h2>
+                    <div>
+                        <span class="badge {% if complaint.status == 'new' %}bg-primary
+                                         {% elif complaint.status == 'in_progress' %}bg-warning
+                                         {% elif complaint.status == 'completed' %}bg-success
+                                         {% else %}bg-danger{% endif %} fs-6 me-2">
+                            {{ complaint.get_status_display }}
+                        </span>
+                        <span class="badge {% if complaint.priority == 'low' %}bg-info
+                                         {% elif complaint.priority == 'medium' %}bg-warning
+                                         {% else %}bg-danger{% endif %} fs-6">
+                            {{ complaint.get_priority_display }}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <h5>Текст обращения:</h5>
+                        <p class="text-muted">{{ complaint.message }}</p>
+                    </div>
+
+                    {% if complaint.response %}
+                    <div class="mb-4">
+                        <h5>Ответ:</h5>
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <p class="card-text">{{ complaint.response }}</p>
+                                <small class="text-muted">
+                                    Ответ дан: {{ complaint.updated_at|date:"d.m.Y H:i" }}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Информация:</h5>
+                            <ul class="list-unstyled">
+                                <li class="mb-2">
+                                    <i class="fas fa-user text-primary"></i>
+                                    <strong>Отправитель:</strong> {{ complaint.user.first_name }} {{ complaint.user.last_name }}
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-building text-primary"></i>
+                                    <strong>Управление:</strong> {{ complaint.department.name }}
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-calendar text-primary"></i>
+                                    <strong>Дата создания:</strong> {{ complaint.created_at|date:"d.m.Y H:i" }}
+                                </li>
+                                {% if complaint.deadline %}
+                                <li class="mb-2">
+                                    <i class="fas fa-clock text-primary"></i>
+                                    <strong>Срок выполнения:</strong> {{ complaint.deadline|date:"d.m.Y H:i" }}
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </div>
+
+                    {% if complaint.status == 'in_progress' %}
+                    <div class="mt-4">
+                        <h5>Добавить комментарий:</h5>
+                        <form method="post" action="{% url 'add_comment' complaint.id %}">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <textarea class="form-control" name="comment" rows="3" required></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-comment"></i> Отправить комментарий
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- История статусов -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">История статусов</h5>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        {% for history in complaint.complainthistory_set.all %}
+                        <div class="timeline-item mb-3">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <h6 class="mb-1">{{ history.get_status_display }}</h6>
+                                {% if history.comment %}
+                                <p class="mb-1">{{ history.comment }}</p>
+                                {% endif %}
+                                <small class="text-muted">{{ history.created_at|date:"d.m.Y H:i" }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

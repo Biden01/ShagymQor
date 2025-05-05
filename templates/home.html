@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+
+{% block title %}Главная - Шағым Qор{% endblock %}
+
+{% block content %}
+<div class="row mb-5">
+    <div class="col-md-8">
+        <h1 class="display-4 mb-4">Добро пожаловать в Шағым Qор</h1>
+        <p class="lead">Система автоматизации обработки жалоб и предложений от граждан</p>
+        <div class="d-grid gap-2 d-md-flex justify-content-md-start">
+            <a href="{% url 'create_complaint' %}" class="btn btn-primary btn-lg px-4 me-md-2">
+                <i class="fas fa-plus"></i> Создать обращение
+            </a>
+            <a href="{% url 'complaints' %}" class="btn btn-outline-secondary btn-lg px-4">
+                <i class="fas fa-list"></i> Мои обращения
+            </a>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <h3 class="card-title">Статистика</h3>
+                <div class="display-4 mb-2">{{ total_complaints }}</div>
+                <p class="card-text">Всего обращений</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-5">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-clock text-warning"></i> В работе
+                </h5>
+                <div class="display-4 mb-2">{{ in_progress_count }}</div>
+                <p class="card-text">Обращений в обработке</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-check-circle text-success"></i> Выполнено
+                </h5>
+                <div class="display-4 mb-2">{{ completed_count }}</div>
+                <p class="card-text">Успешно решенных обращений</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-exclamation-circle text-danger"></i> Просрочено
+                </h5>
+                <div class="display-4 mb-2">{{ overdue_count }}</div>
+                <p class="card-text">Обращений с нарушением сроков</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Последние обращения</h5>
+                <div class="list-group list-group-flush">
+                    {% for complaint in recent_complaints %}
+                    <a href="{% url 'complaint_detail' complaint.id %}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">Обращение #{{ complaint.id }}</h6>
+                            <small>{{ complaint.created_at|date:"d.m.Y" }}</small>
+                        </div>
+                        <p class="mb-1">{{ complaint.message|truncatechars:100 }}</p>
+                        <small class="text-muted">
+                            Статус: {{ complaint.get_status_display }}
+                        </small>
+                    </a>
+                    {% empty %}
+                    <div class="list-group-item">Нет обращений</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Статистика по управлениям</h5>
+                <canvas id="departmentsChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('departmentsChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: {{ department_names|safe }},
+            datasets: [{
+                label: 'Количество обращений',
+                data: {{ department_counts|safe }},
+                backgroundColor: 'rgba(52, 152, 219, 0.5)',
+                borderColor: 'rgba(52, 152, 219, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %} 

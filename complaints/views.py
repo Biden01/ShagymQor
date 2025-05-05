@@ -1,215 +1,154 @@
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.utils.translation import gettext_lazy as _
-from django.db.models import Count, Avg, Q, F
+from django.core.paginator import Paginator
+from django.db.models import Count
 from django.utils import timezone
 from datetime import timedelta
-from .models import Complaint, Department, ComplaintHistory, MediaFile
-from .forms import ComplaintForm, ComplaintFilterForm, DepartmentForm, UserRegistrationForm, MediaFileForm
-import json
-from django.http import JsonResponse
-from django.views.decorators.http import require_POST
-from django.contrib.auth.views import LoginView
-from django.urls import reverse_lazy
-from django.contrib.auth import login
+from bot.models import Complaint, Department, ComplaintHistory, TelegramUser
+
+def home(request):
+    # Общая статистика
+    total_complaints = Complaint.objects.count()
+    in_progress_count = Complaint.objects.filter(status='in_progress').count()
+    completed_count = Complaint.objects.filter(status='completed').count()
+    
+    # Просроченные обращения (старше 3 дней)
+    three_days_ago = timezone.now() - timedelta(days=3)
+    overdue_count = Complaint.objects.filter(
+        status='in_progress',
+        created_at__lt=three_days_ago
+    ).count()
+    
+    # Последние обращения
+    recent_complaints = Complaint.objects.select_related('department', 'user').order_by('-created_at')[:5]
+    
+    # Статистика по управлениям
+    departments = Department.objects.annotate(
+        complaint_count=Count('complaint')
+    ).order_by('-complaint_count')
+    
+    department_names = [dept.name for dept in departments]
+    department_counts = [dept.complaint_count for dept in departments]
+    
+    context = {
+        'total_complaints': total_complaints,
+        'in_progress_count': in_progress_count,
+        'completed_count': completed_count,
+        'overdue_count': overdue_count,
+        'recent_complaints': recent_complaints,
+        'department_names': department_names,
+        'department_counts': department_counts,
+    }
+    
+    return render(request, 'home.html', context)
 
 @login_required
 def complaint_list(request):
-    """Список жалоб с фильтрацией"""
-    form = ComplaintFilterForm(request.GET)
-    complaints = Complaint.objects.all()
-
-    if form.is_valid():
-        if form.cleaned_data['department']:
-            complaints = complaints.filter(department=form.cleaned_data['department'])
-        if form.cleaned_data['status']:
-            complaints = complaints.filter(status=form.cleaned_data['status'])
-        if form.cleaned_data['date_from']:
-            complaints = complaints.filter(created_at__date__gte=form.cleaned_data['date_from'])
-        if form.cleaned_data['date_to']:
-            complaints = complaints.filter(created_at__date__lte=form.cleaned_data['date_to'])
-        if form.cleaned_data['search']:
-            search = form.cleaned_data['search']
-            complaints = complaints.filter(
-                Q(content__icontains=search) |
-                Q(full_name__icontains=search) |
-                Q(contact_info__icontains=search)
-            )
-
-    context = {
-        'complaints': complaints,
-        'form': form,
-    }
-    return render(request, 'complaint_list.html', context)
-
-@login_required
-def complaint_detail(request, pk):
-    """Детальная информация о жалобе"""
-    complaint = get_object_or_404(Complaint, pk=pk)
-    
-    if request.method == 'POST':
-        form = ComplaintForm(request.POST, instance=complaint)
-        if form.is_valid():
-            # Сохраняем историю изменений
-            for field in form.changed_data:
-                old_value = getattr(complaint, field)
-                new_value = form.cleaned_data[field]
-                ComplaintHistory.objects.create(
-                    complaint=complaint,
-                    changed_by=request.user,
-                    field=field,
-                    old_value=str(old_value),
-                    new_value=str(new_value)
-                )
-            
-            form.save()
-            messages.success(request, _('Изменения сохранены'))
-            return redirect('complaint_detail', pk=pk)
+    """Список всех обращений"""
+    if request.user.is_staff:
+        # Для администраторов показываем все обращения
+        complaints = Complaint.objects.all().select_related('department', 'user')
     else:
-        form = ComplaintForm(instance=complaint)
-
-    context = {
-        'complaint': complaint,
-        'form': form,
-        'history': complaint.history.all()[:10],
-    }
-    return render(request, 'complaint_detail.html', context)
-
-@login_required
-def analytics(request):
-    """Страница аналитики"""
-    # Статистика по статусам
-    status_stats = Complaint.objects.values('status').annotate(count=Count('id'))
+        # Для обычных пользователей пока показываем все обращения
+        # В будущем здесь можно добавить связь между Django User и TelegramUser
+        complaints = Complaint.objects.all().select_related('department', 'user')
     
-    # Среднее время обработки
-    avg_processing_time = Complaint.objects.filter(
-        status='completed'
-    ).annotate(
-        processing_time=F('updated_at') - F('created_at')
-    ).aggregate(
-        avg_time=Avg('processing_time')
-    )
+    # Добавляем пагинацию
+    paginator = Paginator(complaints, 10)  # 10 обращений на страницу
+    page = request.GET.get('page')
+    complaints = paginator.get_page(page)
     
-    # Преобразуем среднее время в дни и часы
-    if avg_processing_time['avg_time']:
-        total_seconds = avg_processing_time['avg_time'].total_seconds()
-        avg_processing_time['days'] = int(total_seconds // 86400)  # 86400 секунд в дне
-        avg_processing_time['hours'] = int((total_seconds % 86400) // 3600)  # 3600 секунд в часе
-    else:
-        avg_processing_time['days'] = 0
-        avg_processing_time['hours'] = 0
-    
-    # Статистика по управлениям
-    department_stats = Department.objects.annotate(
-        total_complaints=Count('complaint'),
-        completed_complaints=Count('complaint', filter=Q(complaint__status='completed')),
-        overdue_complaints=Count('complaint', filter=Q(complaint__status='overdue')),
-    )
-    
-    # Жалобы, требующие внимания
-    urgent_complaints = Complaint.objects.filter(
-        deadline__lte=timezone.now() + timedelta(days=2),
-        status__in=['new', 'in_progress']
-    ).order_by('deadline')
-
-    context = {
-        'status_stats': status_stats,
-        'avg_processing_time': avg_processing_time['avg_time'],
-        'department_stats': department_stats,
-        'urgent_complaints': urgent_complaints,
-    }
-    return render(request, 'analytics.html', context)
-
-@login_required
-def department_list(request):
-    """Список управлений"""
-    departments = Department.objects.all()
-    form = DepartmentForm()
-    
-    if request.method == 'POST':
-        form = DepartmentForm(request.POST)
-        if form.is_valid():
-            form.save()
-            messages.success(request, _('Управление добавлено'))
-            return redirect('complaints:department_list')
-
-    context = {
-        'departments': departments,
-        'form': form,
-    }
-    return render(request, 'department_list.html', context)
-
-@login_required
-def department_edit(request, pk):
-    """Редактирование управления"""
-    department = get_object_or_404(Department, pk=pk)
-    
-    if request.method == 'POST':
-        form = DepartmentForm(request.POST, instance=department)
-        if form.is_valid():
-            form.save()
-            messages.success(request, _('Изменения сохранены'))
-            return redirect('complaints:department_list')
-    else:
-        form = DepartmentForm(instance=department)
-    
-    context = {
-        'form': form,
-        'department': department,
-    }
-    return render(request, 'department_edit.html', context)
-
-@login_required
-def department_delete(request, pk):
-    """Удаление управления"""
-    department = get_object_or_404(Department, pk=pk)
-    
-    if request.method == 'POST':
-        department.delete()
-        messages.success(request, _('Управление удалено'))
-        return redirect('complaints:department_list')
-    
-    context = {
-        'department': department,
-    }
-    return render(request, 'department_delete.html', context)
-
-def register(request):
-    if request.method == 'POST':
-        form = UserRegistrationForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            login(request, user)
-            messages.success(request, 'Регистрация успешно завершена!')
-            return redirect('complaints:complaint_list')
-    else:
-        form = UserRegistrationForm()
-    return render(request, 'register.html', {'form': form})
+    return render(request, 'complaints/list.html', {'complaints': complaints})
 
 @login_required
 def create_complaint(request):
+    """Создание нового обращения"""
     if request.method == 'POST':
-        complaint_form = ComplaintForm(request.POST)
-        media_form = MediaFileForm(request.POST, request.FILES)
+        title = request.POST.get('title')
+        message = request.POST.get('message')
+        department_id = request.POST.get('department')
         
-        if complaint_form.is_valid():
-            complaint = complaint_form.save(commit=False)
-            complaint.user = request.user
-            complaint.save()
-            
-            if media_form.is_valid():
-                media_file = media_form.save(commit=False)
-                media_file.complaint = complaint
-                media_file.save()
-            
-            messages.success(request, _('Жалоба успешно создана'))
-            return redirect('complaint_detail', pk=complaint.pk)
-    else:
-        complaint_form = ComplaintForm()
-        media_form = MediaFileForm()
+        if not all([title, message, department_id]):
+            messages.error(request, 'Пожалуйста, заполните все обязательные поля')
+            return redirect('create_complaint')
+        
+        department = get_object_or_404(Department, id=department_id)
+        complaint = Complaint.objects.create(
+            title=title,
+            message=message,
+            user=request.user,
+            department=department
+        )
+        
+        # Создаем начальный статус
+        ComplaintHistory.objects.create(
+            complaint=complaint,
+            status='new',
+            department=department
+        )
+        
+        # Обработка прикрепленных файлов
+        files = request.FILES.getlist('files')
+        for file in files:
+            ComplaintFile.objects.create(
+                complaint=complaint,
+                file=file,
+                uploaded_by=request.user
+            )
+        
+        messages.success(request, 'Обращение успешно создано')
+        return redirect('complaint_detail', complaint_id=complaint.id)
     
-    return render(request, 'complaints/complaint_create.html', {
-        'complaint_form': complaint_form,
-        'media_form': media_form
+    departments = Department.objects.all()
+    return render(request, 'complaints/create.html', {'departments': departments})
+
+@login_required
+def complaint_detail(request, complaint_id):
+    """Детальная информация об обращении"""
+    complaint = get_object_or_404(Complaint, id=complaint_id)
+    
+    # Проверяем доступ
+    if not (request.user.id == complaint.user.user_id or request.user.is_staff):
+        messages.error(request, 'У вас нет доступа к этому обращению')
+        return redirect('complaint_list')
+    
+    if request.method == 'POST' and complaint.status == 'in_progress':
+        comment = request.POST.get('comment')
+        if comment:
+            ComplaintHistory.objects.create(
+                complaint=complaint,
+                status=complaint.status,
+                department=complaint.department,
+                comment=comment
+            )
+            messages.success(request, 'Комментарий добавлен')
+            return redirect('complaint_detail', complaint_id=complaint.id)
+    
+    return render(request, 'complaints/detail.html', {
+        'complaint': complaint
     })
+
+@login_required
+def add_comment(request, complaint_id):
+    """Добавление комментария к обращению"""
+    complaint = get_object_or_404(Complaint, id=complaint_id)
+    
+    if not (request.user.id == complaint.user.user_id or request.user.is_staff):
+        messages.error(request, 'У вас нет доступа к этому обращению')
+        return redirect('complaint_list')
+    
+    if request.method == 'POST':
+        comment = request.POST.get('comment')
+        if comment:
+            ComplaintHistory.objects.create(
+                complaint=complaint,
+                status=complaint.status,
+                department=complaint.department,
+                comment=comment
+            )
+            messages.success(request, 'Комментарий добавлен')
+        else:
+            messages.error(request, 'Комментарий не может быть пустым')
+    
+    return redirect('complaint_detail', complaint_id=complaint.id) 

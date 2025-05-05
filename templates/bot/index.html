@@ -1,0 +1,115 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Главная - Шағым Qор{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 text-center mb-5">
+        <h1 class="display-4 mb-4">Добро пожаловать в Шағым Qор</h1>
+        <p class="lead">Система обработки обращений граждан через Telegram</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Статистика -->
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-comments fa-3x mb-3 text-primary"></i>
+                <h3 class="card-title">{{ total_complaints }}</h3>
+                <p class="card-text">Всего обращений</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-clock fa-3x mb-3 text-warning"></i>
+                <h3 class="card-title">{{ in_progress }}</h3>
+                <p class="card-text">В обработке</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-check-circle fa-3x mb-3 text-success"></i>
+                <h3 class="card-title">{{ completed }}</h3>
+                <p class="card-text">Выполнено</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Как это работает -->
+<div class="row mt-5">
+    <div class="col-12">
+        <h2 class="text-center mb-4">Как это работает</h2>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <div class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                    <i class="fas fa-1 fa-2x"></i>
+                </div>
+                <h5 class="card-title">Найдите бота</h5>
+                <p class="card-text">Найдите нашего бота в Telegram</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <div class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                    <i class="fas fa-2 fa-2x"></i>
+                </div>
+                <h5 class="card-title">Опишите проблему</h5>
+                <p class="card-text">Напишите о вашей проблеме или предложении</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <div class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                    <i class="fas fa-3 fa-2x"></i>
+                </div>
+                <h5 class="card-title">Выберите управление</h5>
+                <p class="card-text">Укажите, в какое управление направить обращение</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <div class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                    <i class="fas fa-4 fa-2x"></i>
+                </div>
+                <h5 class="card-title">Отслеживайте статус</h5>
+                <p class="card-text">Получайте уведомления о ходе рассмотрения</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Призыв к действию -->
+<div class="row mt-5">
+    <div class="col-12 text-center">
+        <div class="card bg-primary text-white">
+            <div class="card-body py-5">
+                <h3 class="mb-4">Готовы оставить обращение?</h3>
+                <p class="lead mb-4">Найдите нашего бота в Telegram и начните прямо сейчас!</p>
+                <a href="https://t.me/shagymqor_bot" class="btn btn-light btn-lg" target="_blank">
+                    <i class="fab fa-telegram"></i> Перейти к боту
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
